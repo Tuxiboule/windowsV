@@ -1,18 +1,10 @@
-# Gestionnaire de Presse-papiers pour macOS
+# Fenêtre Contextuelle
 
-Cette application est un gestionnaire de presse-papiers inspiré de la fonctionnalité Windows + V de Windows 10/11, mais adapté pour macOS.
-
-## Fonctionnalités
-
-- Historique des 10 derniers éléments copiés
-- Interface dans la barre de menu macOS (menu bar)
-- Raccourci clavier Command + Shift + V pour accéder rapidement à l'historique
-- Sauvegarde persistante de l'historique
-- Horodatage des éléments copiés
+Cette application crée une fenêtre contextuelle qui apparaît à côté du curseur lorsque vous appuyez sur la combinaison de touches Shift + Option + Cmd + V.
 
 ## Installation
 
-1. Assurez-vous d'avoir Python 3.x installé
+1. Assurez-vous d'avoir Python 3.6 ou supérieur installé
 2. Installez les dépendances :
 ```bash
 pip install -r requirements.txt
@@ -22,15 +14,19 @@ pip install -r requirements.txt
 
 1. Lancez l'application :
 ```bash
-python clipboard_manager.py             
+python main.py
 ```
 
-2. Une icône 📋 apparaîtra dans votre barre de menu
-3. Utilisez Command + Shift + V pour accéder rapidement à l'historique
-4. Cliquez sur un élément dans le menu pour le copier dans le presse-papiers
+2. Utilisez la combinaison de touches Shift + Option + Cmd + V pour faire apparaître la fenêtre
+3. La fenêtre disparaîtra automatiquement si vous :
+   - Cliquez en dehors de la fenêtre
+   - Appuyez sur la touche Échap
+   - Utilisez à nouveau le raccourci
 
-Note : Pour que l'application fonctionne correctement, vous devrez probablement autoriser l'accès aux "Fonctionnalités d'assistance" dans les Préférences Système > Sécurité et confidentialité > Confidentialité.
+## Structure du projet
 
-## Arrêt de l'application
-
-Cliquez sur l'icône 📋 dans la barre de menu et sélectionnez "Quit"
+- `main.py` : Point d'entrée de l'application
+- `keyboard_listener.py` : Gestion des raccourcis clavier
+- `popup_window.py` : Gestion de la fenêtre contextuelle
+- `mouse_position.py` : Récupération de la position du curseur
+- `requirements.txt` : Liste des dépendances
