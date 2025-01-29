@@ -15,11 +15,45 @@ A clipboard manager for macOS inspired by Windows+V, allowing easy access to you
 - Python 3.9+  
 - Python packages listed in `requirements.txt`  
 
+### Installing Python
+
+There are several ways to install Python on macOS:
+
+1. Using Homebrew (recommended):
+   ```bash
+   # Install Homebrew if not already installed
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   
+   # Install Python
+   brew install python@3.9
+   ```
+
+2. Using the official installer:
+   - Download Python from [python.org](https://www.python.org/downloads/)
+   - Choose Python 3.9 or later
+   - Run the installer and follow the instructions
+   - Verify installation by running `python3 --version` in Terminal
+
+3. Using pyenv (for managing multiple Python versions):
+   ```bash
+   # Install pyenv using Homebrew
+   brew install pyenv
+   
+   # Install Python 3.9
+   pyenv install 3.9
+   pyenv global 3.9
+   ```
+
+After installing Python, make sure pip (Python package manager) is up to date:
+```bash
+python3 -m pip install --upgrade pip
+```
+
 ## Installation
 
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/your-username/WindowsV.git
+   git clone https://github.com/Tuxiboule/WindowsV.git
    cd WindowsV
    ```  
 2. Install dependencies:  
