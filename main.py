@@ -1,119 +1,72 @@
-from keyboard_listener import KeyboardListener
-from popup_window import PopupWindow
-from mouse_position import MousePosition
-import sys
 import logging
-import os
-import platform
-import signal
-import threading
+from mac_keyboard_listener import MacKeyboardListener
+from popup_window import PopupWindow
+from mouse_position import get_mouse_position
+from AppKit import NSApplication, NSApp
+from Foundation import NSObject, NSTimer
+from objc import super
 
-# Configuration du logging
+# Configure le logging
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
 logger = logging.getLogger(__name__)
 
-class Application:
-    def __init__(self):
-        self.popup = PopupWindow()
-        self.keyboard_listener = None
-        self.running = False
-        
-        # Configuration du gestionnaire de signaux
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-        
-    def _signal_handler(self, signum, frame):
-        """Gestionnaire de signaux pour un arrêt propre"""
-        logger.info(f"Signal reçu: {signum}")
-        self.stop()
-        
-    def check_permissions(self):
-        """Vérifie si l'application a les autorisations nécessaires"""
-        if platform.system() != 'Darwin':
-            return True
-            
+class ClipboardChecker(NSObject):
+    def initWithWindow_(self, window):
+        self = super(ClipboardChecker, self).init()
+        if self is not None:
+            self.window = window
+        return self
+    
+    def checkClipboard_(self, timer):
+        """Vérifie régulièrement le presse-papier"""
         try:
-            test_listener = KeyboardListener(lambda: None)
-            test_listener.start()
-            test_listener.stop()
-            return True
+            self.window.clipboard_history.check_and_update()
         except Exception as e:
-            logger.error(f"Erreur d'autorisation : {e}")
-            return False
+            logger.error(f"Erreur lors de la vérification du presse-papier : {e}")
 
-    def show_popup(self):
-        """Callback appelé lorsque la combinaison de touches est détectée"""
-        try:
-            x, y = MousePosition.get_current_position()
-            x += 20  # Décalage pour éviter que la fenêtre soit sous le curseur
-            self.popup.show(x, y)
-        except Exception as e:
-            logger.error(f"Erreur lors de l'affichage du popup : {e}")
-
-    def start(self):
-        """Démarre l'application"""
-        try:
-            self.running = True
-            self.keyboard_listener = KeyboardListener(self.show_popup)
-            self.keyboard_listener.start()
-            
-            logger.info("\nApplication démarrée avec succès!")
-            print("\nAppuyez sur Shift + Option + Cmd + V pour afficher la fenêtre")
-            print("Appuyez sur Ctrl+C pour quitter\n")
-            
-            # Boucle principale
-            while self.running:
-                try:
-                    if threading.main_thread().is_alive():
-                        threading.Event().wait(1)
-                    else:
-                        break
-                except (KeyboardInterrupt, SystemExit):
-                    break
-                    
-        except Exception as e:
-            logger.error(f"Erreur lors du démarrage : {e}")
-        finally:
-            self.stop()
-
-    def stop(self):
-        """Arrête proprement l'application"""
-        self.running = False
-        try:
-            if self.keyboard_listener:
-                self.keyboard_listener.stop()
-                self.keyboard_listener = None
-            if self.popup:
-                self.popup.hide()
-            logger.info("Application arrêtée proprement")
-        except Exception as e:
-            logger.error(f"Erreur lors de l'arrêt : {e}")
-        finally:
-            sys.exit(0)
-
-    def run(self):
-        """Point d'entrée principal de l'application"""
+def main():
+    try:
         logger.info("Démarrage de l'application...")
         
-        if not self.check_permissions():
-            print("\n" + "="*80)
-            print("ATTENTION : Autorisations requises")
-            print("Cette application nécessite des autorisations d'accessibilité pour fonctionner.")
-            print("\nPour autoriser l'application :")
-            print("1. Allez dans Préférences Système > Sécurité et confidentialité > Confidentialité")
-            print("2. Sélectionnez 'Accessibilité' dans la liste de gauche")
-            print("3. Cliquez sur le cadenas en bas à gauche pour déverrouiller")
-            print("4. Ajoutez Terminal (ou votre éditeur de code) à la liste")
-            print("\nUne fois les autorisations accordées, relancez l'application.")
-            print("="*80 + "\n")
-            sys.exit(1)
+        # Initialise NSApplication si nécessaire
+        if NSApp() is None:
+            app = NSApplication.sharedApplication()
         
-        self.start()
+        # Crée la fenêtre popup
+        logger.info("Création de la fenêtre popup...")
+        global popup_window
+        popup_window = PopupWindow()
+        
+        # Crée et configure le checker de presse-papier
+        checker = ClipboardChecker.new()
+        checker.initWithWindow_(popup_window)
+        NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            1.0,  # Intervalle en secondes
+            checker,  # Target
+            'checkClipboard:',  # Selector
+            None,  # User info
+            True  # Repeats
+        )
+        
+        # Configure le listener de clavier
+        keyboard = MacKeyboardListener()
+        keyboard.set_callback(lambda: popup_window.show(*get_mouse_position()))
+        keyboard.start()
+        
+        # Lance la boucle principale
+        NSApplication.sharedApplication().run()
+        
+    except Exception as e:
+        logger.error(f"Erreur dans la boucle principale : {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+    finally:
+        logger.info("Application arrêtée proprement")
 
 if __name__ == "__main__":
-    app = Application()
-    app.run()
+    main()
