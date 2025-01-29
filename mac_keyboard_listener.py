@@ -8,17 +8,29 @@ from Quartz import (CFMachPortCreateRunLoopSource, CFRunLoopGetCurrent,
                    CGEventTapEnable)
 import logging
 
-# Utilize the logger configured in main.py
 logger = logging.getLogger(__name__)
 
 class MacKeyboardListener:
+    """
+    A keyboard event listener for macOS that detects specific key combinations.
+    
+    This class uses the Quartz event tap mechanism to intercept keyboard events
+    and detect specific keyboard shortcuts. It can be used to trigger actions
+    when certain key combinations are pressed.
+    """
+
     def __init__(self, callback):
+        """
+        Initialize the keyboard listener.
+
+        Args:
+            callback: Function to call when the target key combination is detected.
+        """
         self.callback = callback
         self.running = False
         self.tap = None
         self.run_loop_source = None
         
-        # Dictionary to convert key codes to readable names
         self.KEY_CODES = {
             0: 'a', 1: 's', 2: 'd', 3: 'f', 4: 'h', 5: 'g', 6: 'z', 7: 'x',
             8: 'c', 9: 'v', 10: '§', 11: 'b', 12: 'q', 13: 'w', 14: 'e',
@@ -40,38 +52,33 @@ class MacKeyboardListener:
         }
 
     def _event_callback(self, proxy, event_type, event, refcon):
-        """Callback called for each keyboard event"""
+        """
+        Process keyboard events and detect specific key combinations.
+
+        Args:
+            proxy: The event tap object.
+            event_type: Type of the event.
+            event: The event object containing key information.
+            refcon: Reference constant (unused).
+
+        Returns:
+            The event object for event chain processing.
+
+        Raises:
+            Exception: If there's an error handling the event.
+        """
         try:
-            # Check if it's a key down event
             if event_type == kCGEventKeyDown:
-                # Get the key code and flags
                 key_code = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode)
                 flags = CGEventGetFlags(event)
                 
-                # Check the modifiers
                 cmd_pressed = (flags & kCGEventFlagMaskCommand) != 0
                 alt_pressed = (flags & kCGEventFlagMaskAlternate) != 0
                 ctrl_pressed = (flags & kCGEventFlagMaskControl) != 0
                 
-                # Convert the key code to a readable name
                 key_name = self.KEY_CODES.get(key_code, f'Unknown({key_code})')
-                '''
-                # Log the pressed key
-                modifiers = []
-                if cmd_pressed:
-                    modifiers.append('Command')
-                if alt_pressed:
-                    modifiers.append('Option')
-                if ctrl_pressed:
-                    modifiers.append('Control')
                 
-                if modifiers:
-                    logger.info(f"Key pressed: {' + '.join(modifiers)} + {key_name} (code: {key_code})")
-                else:
-                    logger.info(f"Key pressed: {key_name} (code: {key_code})")
-                '''
-                # Check if it's the shortcut we're looking for (Command + Control + Option + V)
-                if key_code == 9 and cmd_pressed and alt_pressed and ctrl_pressed:  # V
+                if key_code == 9 and cmd_pressed and alt_pressed and ctrl_pressed:
                     logger.info("Shortcut detected: Command + Control + Option + V!")
                     self.callback()
                 
@@ -81,34 +88,39 @@ class MacKeyboardListener:
         return event
 
     def start(self):
-        """Start listening for keyboard events"""
+        """
+        Start listening for keyboard events.
+        
+        Creates and enables an event tap to intercept keyboard events at the session level.
+        The tap will remain active until stop() is called.
+
+        Raises:
+            Exception: If there's an error creating the event tap or if accessibility
+                      permissions are not granted.
+        """
         try:
             logger.info("Starting keyboard listener...")
             self.running = True
             
-            # Create a tap to intercept keyboard events
             mask = CGEventMaskBit(kCGEventKeyDown)
             self.tap = CGEventTapCreate(
-                kCGSessionEventTap,  # Tap at the session level
-                kCGHeadInsertEventTap,  # Insert at the beginning of the chain
-                0,  # Default options
-                mask,  # Event mask
-                self._event_callback,  # Our callback
-                None  # No user data
+                kCGSessionEventTap,
+                kCGHeadInsertEventTap,
+                0,
+                mask,
+                self._event_callback,
+                None
             )
             
             if self.tap is None:
                 raise Exception("Failed to create event tap. Check accessibility permissions.")
             
-            # Enable the tap
             CGEventTapEnable(self.tap, True)
             
-            # Create a source for the event loop
             self.run_loop_source = CFMachPortCreateRunLoopSource(
                 None, self.tap, 0
             )
             
-            # Add the source to the current event loop
             run_loop = CFRunLoopGetCurrent()
             CFRunLoopAddSource(
                 run_loop,
@@ -125,11 +137,19 @@ class MacKeyboardListener:
             raise
 
     def stop(self):
-        """Stop listening for keyboard events"""
+        """
+        Stop listening for keyboard events.
+        
+        Disables the event tap and cleans up resources. After calling this method,
+        no more keyboard events will be processed until start() is called again.
+
+        Raises:
+            Exception: If there's an error stopping the keyboard listener.
+        """
         try:
             logger.info("Stopping keyboard listener...")
             if self.tap:
-                CGEventTapEnable(self.tap, False)  # Disable the tap
+                CGEventTapEnable(self.tap, False)
                 self.tap = None
             if self.run_loop_source:
                 self.run_loop_source = None

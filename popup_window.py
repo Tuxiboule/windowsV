@@ -19,7 +19,27 @@ from clipboard_history import ClipboardHistory
 logger = logging.getLogger(__name__)
 
 class HistoryItemView(NSView):
+    """
+    A custom NSView subclass that displays a single clipboard history item with a delete button.
+    
+    This view handles mouse interactions, hover effects, and click events for both
+    the main text area and the delete button.
+    """
+
     def initWithFrame_text_index_callback_deleteCallback_(self, frame, text, index, callback, delete_callback):
+        """
+        Initialize the history item view with the given parameters.
+
+        Args:
+            frame: NSRect defining the view's frame.
+            text: String content to display in the view.
+            index: Integer index of this item in the history.
+            callback: Function to call when the item is clicked.
+            delete_callback: Function to call when the delete button is clicked.
+
+        Returns:
+            The initialized HistoryItemView instance.
+        """
         self = super(HistoryItemView, self).initWithFrame_(frame)
         if self is not None:
             self.text = text
@@ -29,7 +49,6 @@ class HistoryItemView(NSView):
             self.hovered = False
             self.delete_button_hovered = False
             
-            # Configure mouse tracking
             tracking_options = (NSTrackingMouseEnteredAndExited |
                               NSTrackingActiveAlways |
                               NSTrackingMouseMoved)
@@ -41,28 +60,25 @@ class HistoryItemView(NSView):
             )
             self.addTrackingArea_(tracking_area)
             
-            # Enable layer for transparency
             self.setWantsLayer_(True)
-            self.layer().setBackgroundColor_(CGColorCreateGenericRGB(1, 1, 1, 0))  # Transparent white background
+            self.layer().setBackgroundColor_(CGColorCreateGenericRGB(1, 1, 1, 0))  
             
-            # Create delete button
             button_size = 20
             button_frame = NSMakeRect(
-                frame.size.width - button_size - 10,  # 10 pixels of margin
+                frame.size.width - button_size - 10,  
                 (frame.size.height - button_size) / 2,
                 button_size,
                 button_size
             )
             self.delete_button = NSButton.alloc().initWithFrame_(button_frame)
-            self.delete_button.setTitle_("✕")  # Use a more visible ×
-            self.delete_button.setBezelStyle_(NSBezelStyleRegularSquare)  # Square style
-            self.delete_button.setButtonType_(NSMomentaryPushInButton)  # Button type
-            self.delete_button.setBordered_(False)  # No border
+            self.delete_button.setTitle_("✕")  
+            self.delete_button.setBezelStyle_(NSBezelStyleRegularSquare)  
+            self.delete_button.setButtonType_(NSMomentaryPushInButton)  
+            self.delete_button.setBordered_(False)  
             self.delete_button.setTarget_(self)
             self.delete_button.setAction_("deleteClicked:")
-            self.delete_button.setFont_(NSFont.systemFontOfSize_(14))  # Larger font
+            self.delete_button.setFont_(NSFont.systemFontOfSize_(14))  
             
-            # Text color in gray
             attrs = {
                 NSForegroundColorAttributeName: NSColor.secondaryLabelColor()
             }
@@ -74,35 +90,61 @@ class HistoryItemView(NSView):
         return self
     
     def deleteClicked_(self, sender):
+        """
+        Handle delete button click event.
+
+        Args:
+            sender: The NSButton that triggered the event.
+        """
         self.delete_callback(self.index)
     
     def mouseEntered_(self, event):
+        """
+        Handle mouse enter event by updating hover state and cursor.
+
+        Args:
+            event: The NSEvent representing the mouse enter event.
+        """
         self.hovered = True
         self.setNeedsDisplay_(True)
         NSCursor.pointingHandCursor().set()
     
     def mouseExited_(self, event):
+        """
+        Handle mouse exit event by updating hover state and cursor.
+
+        Args:
+            event: The NSEvent representing the mouse exit event.
+        """
         self.hovered = False
         self.setNeedsDisplay_(True)
         NSCursor.arrowCursor().set()
     
     def mouseDown_(self, event):
-        # Convert click point to local coordinates
+        """
+        Handle mouse click event by triggering the appropriate callback.
+
+        Args:
+            event: The NSEvent representing the mouse click event.
+        """
         point = self.convertPoint_fromView_(event.locationInWindow(), None)
         
-        # Check if click is on delete button
         if not NSPointInRect(point, self.delete_button.frame()):
             self.callback(self.index)
     
     def drawRect_(self, rect):
-        # Draw background
+        """
+        Draw the view's content including background and text.
+
+        Args:
+            rect: The NSRect defining the area to be drawn.
+        """
         if self.hovered:
-            NSColor.selectedTextBackgroundColor().setFill()  # Fill when hovered
+            NSColor.selectedTextBackgroundColor().setFill()  
         else:
-            NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9).setFill()  # Semi-transparent otherwise
+            NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9).setFill()  
         NSBezierPath.fillRect_(self.bounds())
         
-        # Draw text
         if self.hovered:
             text_color = NSColor.selectedTextColor()
         else:
@@ -113,7 +155,6 @@ class HistoryItemView(NSView):
             NSFontAttributeName: NSFont.systemFontOfSize_(13)
         }
         
-        # Truncate text if necessary
         display_text = self.text
         if len(display_text) > 100:
             display_text = display_text[:97] + "..."
@@ -122,55 +163,60 @@ class HistoryItemView(NSView):
             display_text, attrs
         )
         
-        # Calculate text position to center vertically
         text_height = text.size().height
         y_pos = (self.bounds().size.height - text_height) / 2
         
-        # Leave space for delete button
         text.drawAtPoint_(NSPoint(10, y_pos))
 
 class PopupWindow:
+    """
+    A floating window that displays clipboard history items.
+    
+    This class manages a transparent, borderless window that shows clipboard history
+    items and handles keyboard and mouse events for interaction with the history items.
+    """
+
     def __init__(self):
+        """
+        Initialize the popup window with a transparent background and clipboard history.
+        
+        Sets up the window appearance, scroll view, content view, and event monitors.
+        The window is initially hidden.
+        """
         logger.info("Initializing PopupWindow")
         
-        # Initialize clipboard history
-        self.clipboard_history = ClipboardHistory(max_items=10)
+        self.clipboard_history = ClipboardHistory(max_items=50)
         
-        # Initialize NSApplication if needed
         if NSApp() is None:
             app = NSApplication.sharedApplication()
-            app.setActivationPolicy_(1)  # NSApplicationActivationPolicyAccessory
+            app.setActivationPolicy_(1)  
         
-        # Create a simple borderless window
         self.window = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, 400, 300),  # Initial position and size
-            NSWindowStyleMaskBorderless | NSWindowStyleMaskTitled | NSWindowStyleMaskNonactivatingPanel,  # Borderless and non-activating
+            NSMakeRect(0, 0, 400, 300),  
+            NSWindowStyleMaskBorderless | NSWindowStyleMaskTitled | NSWindowStyleMaskNonactivatingPanel,  
             NSBackingStoreBuffered,
             False
         )
         
-        # Configure window
-        background_color = NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9)  # More opaque
+        background_color = NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9)  
         self.window.setBackgroundColor_(background_color)
-        self.window.setOpaque_(False)  # Required for transparency
-        self.window.setHasShadow_(True)  # With shadow
-        self.window.setLevel_(NSFloatingWindowLevel)  # Floating window
-        self.window.setAcceptsMouseMovedEvents_(True)  # Enable mouse events
-        self.window.setIgnoresMouseEvents_(False)  # Accept mouse events
-        self.window.setCanHide_(True)  # Can be hidden
-        self.window.setHidesOnDeactivate_(False)  # Don't hide when losing focus
-        self.window.setBecomesKeyOnlyIfNeeded_(True)  # Only take focus when needed
+        self.window.setOpaque_(False)  
+        self.window.setHasShadow_(True)  
+        self.window.setLevel_(NSFloatingWindowLevel)  
+        self.window.setAcceptsMouseMovedEvents_(True)  
+        self.window.setIgnoresMouseEvents_(False)  
+        self.window.setCanHide_(True)  
+        self.window.setHidesOnDeactivate_(False)  
+        self.window.setBecomesKeyOnlyIfNeeded_(True)  
         
-        # Create scroll view
         scroll_view = NSScrollView.alloc().initWithFrame_(
             NSMakeRect(0, 0, 400, 300)
         )
         scroll_view.setHasVerticalScroller_(True)
         scroll_view.setAutohidesScrollers_(True)
         scroll_view.setBorderType_(NSBezelBorder)
-        scroll_view.setDrawsBackground_(False)  # Make background transparent
+        scroll_view.setDrawsBackground_(False)  
         
-        # Create content view with transparent background
         self.content_view = NSView.alloc().initWithFrame_(
             NSMakeRect(0, 0, 380, 300)
         )
@@ -178,23 +224,30 @@ class PopupWindow:
         
         scroll_view.setDocumentView_(self.content_view)
         
-        # Add scroll view to window
         self.window.setContentView_(scroll_view)
         
-        # Configure event monitors
         self.key_monitor = None
         self.click_monitor = None
         
-        # Hide window at startup
         self.window.orderOut_(None)
         logger.info("PopupWindow successfully initialized")
 
     def _handle_key_event(self, event):
-        # Handle keyboard events
+        """
+        Handle keyboard events for the window.
+
+        Args:
+            event: NSEvent representing the keyboard event.
+
+        Returns:
+            The event object if not handled, None if handled.
+
+        Raises:
+            Exception: If there's an error handling the keyboard event.
+        """
         try:
             logger.info(f"Keyboard event received - type: {event.type()}, keyCode: {event.keyCode()}")
             if event.type() == NSEventTypeKeyDown:
-                # If Esc key is pressed (keyCode 53)
                 if event.keyCode() == 53:
                     logger.info("Esc key detected, closing window")
                     self.hide()
@@ -205,17 +258,25 @@ class PopupWindow:
             return event
 
     def _handle_click_event(self, event):
-        # Handle click events
+        """
+        Handle mouse click events outside the window.
+
+        Args:
+            event: NSEvent representing the mouse click event.
+
+        Returns:
+            The event object if not handled, None if handled.
+
+        Raises:
+            Exception: If there's an error handling the click event.
+        """
         try:
-            # Check if click is within window
             click_location = NSEvent.mouseLocation()
             window_frame = self.window.frame()
             
-            # Convert screen coordinates to window coordinates
             screen_frame = NSScreen.mainScreen().frame()
             adjusted_y = screen_frame.size.height - click_location.y
             
-            # Check if click is within window
             in_window = (
                 window_frame.origin.x <= click_location.x <= window_frame.origin.x + window_frame.size.width and
                 adjusted_y - window_frame.size.height <= click_location.y <= adjusted_y
@@ -233,7 +294,15 @@ class PopupWindow:
             return event
 
     def _handle_item_click(self, index):
-        # Handle history item click
+        """
+        Handle clicks on clipboard history items.
+
+        Args:
+            index: Integer index of the clicked history item.
+
+        Raises:
+            Exception: If there's an error handling the item click.
+        """
         try:
             history = self.clipboard_history.get_history()
             if 0 <= index < len(history):
@@ -245,7 +314,15 @@ class PopupWindow:
             logger.error(f"Error handling item click: {e}")
 
     def _handle_item_delete(self, index):
-        # Handle history item deletion
+        """
+        Handle deletion of clipboard history items.
+
+        Args:
+            index: Integer index of the history item to delete.
+
+        Raises:
+            Exception: If there's an error handling the item deletion.
+        """
         try:
             if self.clipboard_history.remove_item(index):
                 logger.info(f"Item {index} deleted successfully")
@@ -256,23 +333,26 @@ class PopupWindow:
             logger.error(f"Error handling item deletion: {e}")
 
     def _update_history_view(self):
-        # Update view with current history
+        """
+        Update the window's content view with current clipboard history items.
+        
+        Creates and positions HistoryItemView instances for each history item.
+
+        Raises:
+            Exception: If there's an error updating the history view.
+        """
         try:
-            # Remove all old views
             for subview in self.content_view.subviews():
                 subview.removeFromSuperview()
             
-            # Get history
             history = self.clipboard_history.get_history()
             if not history:
                 logger.info("History is empty")
                 return
                 
-            # Configure item size
             item_height = 30
             total_height = max(len(history) * item_height, self.content_view.frame().size.height)
             
-            # Update content view size
             frame = self.content_view.frame()
             new_frame = NSMakeRect(
                 frame.origin.x,
@@ -282,7 +362,6 @@ class PopupWindow:
             )
             self.content_view.setFrame_(new_frame)
             
-            # Create view for each item, starting from top
             for i, item in enumerate(history):
                 frame = NSMakeRect(0, total_height - ((i + 1) * item_height), 380, item_height)
                 item_view = HistoryItemView.alloc().initWithFrame_text_index_callback_deleteCallback_(
@@ -296,30 +375,33 @@ class PopupWindow:
             logger.error(f"Error updating history view: {e}")
 
     def show(self, x=0, y=0):
-        # Show window at specified coordinates
+        """
+        Show the window at specified coordinates.
+
+        Args:
+            x: Integer x-coordinate for window position (default: 0).
+            y: Integer y-coordinate for window position (default: 0).
+
+        Raises:
+            Exception: If there's an error showing the window.
+        """
         try:
             logger.info(f"Showing window at coordinates ({x}, {y})")
             
-            # Update history
             self.clipboard_history.check_and_update()
             
-            # Update view
             self._update_history_view()
             
-            # Get main screen
             screen = NSScreen.mainScreen()
             if screen is None:
                 logger.error("Failed to find main screen")
                 return
             
-            # Adjust coordinates for Mac screen (origin at bottom left)
             screen_frame = screen.frame()
             adjusted_y = screen_frame.size.height - y
             
-            # Position window
             self.window.setFrameOrigin_((x, adjusted_y - self.window.frame().size.height))
             
-            # Configure event monitors
             if self.key_monitor is None:
                 logger.info("Configuring keyboard event monitor")
                 self.key_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
@@ -333,18 +415,21 @@ class PopupWindow:
                     self._handle_click_event
                 )
             
-            # Show window without taking focus
             self.window.orderFrontRegardless()
             
         except Exception as e:
             logger.error(f"Error showing window: {e}")
 
     def hide(self):
-        # Hide window
+        """
+        Hide the window and clean up event monitors.
+
+        Raises:
+            Exception: If there's an error hiding the window.
+        """
         try:
             logger.info("Closing window")
             
-            # Remove event monitors
             if self.key_monitor is not None:
                 NSEvent.removeMonitor_(self.key_monitor)
                 self.key_monitor = None
@@ -355,7 +440,6 @@ class PopupWindow:
                 self.click_monitor = None
                 logger.info("Click event monitor removed")
             
-            # Hide window
             self.window.orderOut_(None)
             logger.info("Window hidden successfully")
             
