@@ -23,16 +23,17 @@ class HistoryItemView(NSView):
     A custom NSView subclass that displays a single clipboard history item with a delete button.
     
     This view handles mouse interactions, hover effects, and click events for both
-    the main text area and the delete button.
+    the main text area and the delete button. It supports different content types
+    including text, images, and files.
     """
 
-    def initWithFrame_text_index_callback_deleteCallback_(self, frame, text, index, callback, delete_callback):
+    def initWithFrame_text_index_callback_deleteCallback_(self, frame, item, index, callback, delete_callback):
         """
         Initialize the history item view with the given parameters.
 
         Args:
             frame: NSRect defining the view's frame.
-            text: String content to display in the view.
+            item: ClipboardItem instance containing the content to display.
             index: Integer index of this item in the history.
             callback: Function to call when the item is clicked.
             delete_callback: Function to call when the delete button is clicked.
@@ -42,7 +43,7 @@ class HistoryItemView(NSView):
         """
         self = super(HistoryItemView, self).initWithFrame_(frame)
         if self is not None:
-            self.text = text
+            self.item = item
             self.index = index
             self.callback = callback
             self.delete_callback = delete_callback
@@ -61,29 +62,38 @@ class HistoryItemView(NSView):
             self.addTrackingArea_(tracking_area)
             
             self.setWantsLayer_(True)
-            self.layer().setBackgroundColor_(CGColorCreateGenericRGB(1, 1, 1, 0))  
+            self.layer().setBackgroundColor_(CGColorCreateGenericRGB(1, 1, 1, 0))
             
             button_size = 20
             button_frame = NSMakeRect(
-                frame.size.width - button_size - 10,  
+                frame.size.width - button_size - 10,
                 (frame.size.height - button_size) / 2,
                 button_size,
                 button_size
             )
             self.delete_button = NSButton.alloc().initWithFrame_(button_frame)
-            self.delete_button.setTitle_("✕")  
-            self.delete_button.setBezelStyle_(NSBezelStyleRegularSquare)  
-            self.delete_button.setButtonType_(NSMomentaryPushInButton)  
-            self.delete_button.setBordered_(False)  
+            self.delete_button.setTitle_("✕")
+            self.delete_button.setBezelStyle_(NSBezelStyleRegularSquare)
+            self.delete_button.setButtonType_(NSMomentaryPushInButton)
+            self.delete_button.setBordered_(False)
             self.delete_button.setTarget_(self)
             self.delete_button.setAction_("deleteClicked:")
-            self.delete_button.setFont_(NSFont.systemFontOfSize_(14))  
+            self.delete_button.setFont_(NSFont.systemFontOfSize_(14))
             
             attrs = {
                 NSForegroundColorAttributeName: NSColor.secondaryLabelColor()
             }
             title_attrs = NSAttributedString.alloc().initWithString_attributes_("✕", attrs)
             self.delete_button.setAttributedTitle_(title_attrs)
+            
+            if self.item.content_type == 'image':
+                self.image_view = NSImageView.alloc().initWithFrame_(
+                    NSMakeRect(10, 5, frame.size.height - 10, frame.size.height - 10)
+                )
+                image = NSImage.alloc().initWithContentsOfFile_(self.item.content)
+                if image:
+                    self.image_view.setImage_(image)
+                    self.addSubview_(self.image_view)
             
             self.addSubview_(self.delete_button)
             
@@ -140,9 +150,9 @@ class HistoryItemView(NSView):
             rect: The NSRect defining the area to be drawn.
         """
         if self.hovered:
-            NSColor.selectedTextBackgroundColor().setFill()  
+            NSColor.selectedTextBackgroundColor().setFill()
         else:
-            NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9).setFill()  
+            NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9).setFill()
         NSBezierPath.fillRect_(self.bounds())
         
         if self.hovered:
@@ -155,18 +165,35 @@ class HistoryItemView(NSView):
             NSFontAttributeName: NSFont.systemFontOfSize_(13)
         }
         
-        display_text = self.text
-        if len(display_text) > 100:
-            display_text = display_text[:97] + "..."
+        # Display appropriate preview based on content type
+        if self.item.content_type == 'text':
+            display_text = self.item.content
+            if len(display_text) > 100:
+                display_text = display_text[:97] + "..."
+        elif self.item.content_type == 'image':
+            display_text = "📷 Image"
+        elif self.item.content_type == 'file':
+            display_text = f"📄 {self.item.preview}"
+        elif self.item.content_type == 'pdf':
+            display_text = "📑 PDF Document"
+        elif self.item.content_type == 'rtf':
+            display_text = "📝 Rich Text Document"
+        else:
+            display_text = f"Unknown type: {self.item.content_type}"
         
         text = NSAttributedString.alloc().initWithString_attributes_(
             display_text, attrs
         )
         
+        # Position text to the right of the image if present
+        if self.item.content_type == 'image':
+            x_offset = self.bounds().size.height
+        else:
+            x_offset = 10
+            
         text_height = text.size().height
         y_pos = (self.bounds().size.height - text_height) / 2
-        
-        text.drawAtPoint_(NSPoint(10, y_pos))
+        text.drawAtPoint_(NSPoint(x_offset, y_pos))
 
 class PopupWindow:
     """

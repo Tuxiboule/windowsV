@@ -1,6 +1,7 @@
 # WindowsV
 
 A clipboard manager for macOS inspired by Windows+V, allowing easy access to your clipboard history.
+Fell free to comment any suggestion.
 
 ## Features
 
@@ -17,31 +18,12 @@ A clipboard manager for macOS inspired by Windows+V, allowing easy access to you
 
 ### Installing Python
 
-There are several ways to install Python on macOS:
-
-1. Using Homebrew (recommended):
    ```bash
    # Install Homebrew if not already installed
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    
    # Install Python
    brew install python@3.9
-   ```
-
-2. Using the official installer:
-   - Download Python from [python.org](https://www.python.org/downloads/)
-   - Choose Python 3.9 or later
-   - Run the installer and follow the instructions
-   - Verify installation by running `python3 --version` in Terminal
-
-3. Using pyenv (for managing multiple Python versions):
-   ```bash
-   # Install pyenv using Homebrew
-   brew install pyenv
-   
-   # Install Python 3.9
-   pyenv install 3.9
-   pyenv global 3.9
    ```
 
 After installing Python, make sure pip (Python package manager) is up to date:
@@ -76,10 +58,9 @@ These permissions can be granted in:
 
 ## Usage
 
-1. Launch the application  
-2. The app runs in the background in the menu bar (📋 icon)  
-3. Use the shortcut Ctrl+Opt+Cmd+V to display the clipboard history  
-4. Click on an item to copy it to the clipboard and paste it in input field
+1. The app runs in the background in the menu bar (📋 icon)  
+2. Use the shortcut Ctrl+Opt+Cmd+V to display the clipboard history  
+3. Click on an item to past it in the current field
 
 ## Project Structure
 
@@ -87,13 +68,4 @@ These permissions can be granted in:
 - `popup_window.py` : Manages the popup window  
 - `clipboard_history.py` : Handles clipboard history  
 - `mac_keyboard_listener.py` : Manages keyboard shortcuts  
-- `mouse_position.py` : Utility for retrieving cursor position  
-
-## Development
-
-To contribute to the project:  
-1. Fork the repository  
-2. Create a branch for your feature  
-3. Commit your changes  
-4. Push to the branch  
-5. Open a Pull Request  
+- `mouse_position.py` : Utility for retrieving cursor position
