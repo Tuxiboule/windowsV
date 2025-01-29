@@ -32,7 +32,7 @@ def get_mouse_position():
     """
     try:
         location = NSEvent.mouseLocation()
-        logger.debug(f"Mouse position: ({location.x}, {location.y})")
+        #logger.debug(f"Mouse position: ({location.x}, {location.y})")
         return location.x, location.y
     except Exception as e:
         logger.error(f"Error getting mouse position: {e}")

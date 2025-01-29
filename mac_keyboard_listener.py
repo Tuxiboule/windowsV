@@ -79,7 +79,7 @@ class MacKeyboardListener:
                 key_name = self.KEY_CODES.get(key_code, f'Unknown({key_code})')
                 
                 if key_code == 9 and cmd_pressed and alt_pressed and ctrl_pressed:
-                    logger.info("Shortcut detected: Command + Control + Option + V!")
+                    #logger.info("Shortcut detected: Command + Control + Option + V!")
                     self.callback()
                 
         except Exception as e:

@@ -1,46 +1,27 @@
-from AppKit import (NSWindow, NSPanel, NSScreen, NSScrollView, NSTableView,
-                  NSTableColumn, NSColor, NSRect, NSPoint, NSSize,
-                  NSBackingStoreBuffered, NSWindowStyleMaskBorderless,
-                  NSWindowStyleMaskTitled, NSWindowStyleMaskClosable,
-                  NSWindowStyleMaskResizable, NSWindowStyleMaskMiniaturizable,
-                  NSEventTypeKeyDown, NSEventTypeLeftMouseDown, NSEventMaskKeyDown,
-                  NSEventMaskLeftMouseDown, NSPointInRect, NSEvent,
-                  NSBezelBorder, NSFont, NSMakeRange, NSForegroundColorAttributeName,
-                  NSAttributedString, NSCursor, NSTrackingArea, NSTrackingMouseEnteredAndExited,
-                  NSTrackingActiveAlways, NSTrackingMouseMoved, NSBezierPath,
-                  NSFontAttributeName, NSView, NSTextField, NSButton, NSTextView,
-                  NSApp, NSFloatingWindowLevel, NSMakeRect, NSWindowStyleMaskNonactivatingPanel,
-                  NSBezelStyleRegularSquare, NSMomentaryPushInButton, NSApplication)
+from AppKit import (NSView, NSColor, NSBezierPath, NSPoint, NSMakeRect,
+                  NSTrackingArea, NSTrackingMouseEnteredAndExited,
+                  NSTrackingActiveAlways, NSTrackingMouseMoved,
+                  NSButton, NSBezelStyleRegularSquare, NSMomentaryPushInButton,
+                  NSFont, NSForegroundColorAttributeName, NSFontAttributeName,
+                  NSAttributedString, NSImageView, NSImage, NSWindow, NSPanel,
+                  NSWindowStyleMaskBorderless, NSWindowStyleMaskTitled,
+                  NSWindowStyleMaskClosable, NSWindowStyleMaskResizable,
+                  NSWindowStyleMaskMiniaturizable, NSWindowStyleMaskNonactivatingPanel,
+                  NSFloatingWindowLevel, NSScreen, NSApp, NSBackingStoreBuffered,
+                  NSStringPboardType, NSPasteboardTypePNG, NSPasteboardTypeTIFF,
+                  NSPasteboardTypeRTF, NSPasteboardTypeFileURL, NSPDFPboardType,
+                  NSPointInRect, NSCursor, NSEventTypeKeyDown, NSEventTypeLeftMouseDown,
+                  NSEventMaskKeyDown, NSEventMaskLeftMouseDown, NSEvent)
 from Quartz import CGColorCreateGenericRGB
 from objc import super
 import logging
+import os
 from clipboard_history import ClipboardHistory
 
 logger = logging.getLogger(__name__)
 
 class HistoryItemView(NSView):
-    """
-    A custom NSView subclass that displays a single clipboard history item with a delete button.
-    
-    This view handles mouse interactions, hover effects, and click events for both
-    the main text area and the delete button. It supports different content types
-    including text, images, and files.
-    """
-
     def initWithFrame_text_index_callback_deleteCallback_(self, frame, item, index, callback, delete_callback):
-        """
-        Initialize the history item view with the given parameters.
-
-        Args:
-            frame: NSRect defining the view's frame.
-            item: ClipboardItem instance containing the content to display.
-            index: Integer index of this item in the history.
-            callback: Function to call when the item is clicked.
-            delete_callback: Function to call when the delete button is clicked.
-
-        Returns:
-            The initialized HistoryItemView instance.
-        """
         self = super(HistoryItemView, self).initWithFrame_(frame)
         if self is not None:
             self.item = item
@@ -49,6 +30,7 @@ class HistoryItemView(NSView):
             self.delete_callback = delete_callback
             self.hovered = False
             self.delete_button_hovered = False
+            self.image_view = None
             
             tracking_options = (NSTrackingMouseEnteredAndExited |
                               NSTrackingActiveAlways |
@@ -86,62 +68,24 @@ class HistoryItemView(NSView):
             title_attrs = NSAttributedString.alloc().initWithString_attributes_("✕", attrs)
             self.delete_button.setAttributedTitle_(title_attrs)
             
-            if self.item.content_type == 'image':
-                self.image_view = NSImageView.alloc().initWithFrame_(
-                    NSMakeRect(10, 5, frame.size.height - 10, frame.size.height - 10)
-                )
-                image = NSImage.alloc().initWithContentsOfFile_(self.item.content)
-                if image:
-                    self.image_view.setImage_(image)
-                    self.addSubview_(self.image_view)
+            # Add image view for images and files
+            if self.item.content_type in (NSPasteboardTypePNG, NSPasteboardTypeTIFF):
+                try:
+                    self.image_view = NSImageView.alloc().initWithFrame_(
+                        NSMakeRect(10, 5, frame.size.height - 10, frame.size.height - 10)
+                    )
+                    if os.path.exists(self.item.preview):
+                        image = NSImage.alloc().initWithContentsOfFile_(self.item.preview)
+                        if image:
+                            self.image_view.setImage_(image)
+                            self.addSubview_(self.image_view)
+                except Exception as e:
+                    logger.error(f"Error setting up image view: {e}")
             
             self.addSubview_(self.delete_button)
             
         return self
-    
-    def deleteClicked_(self, sender):
-        """
-        Handle delete button click event.
 
-        Args:
-            sender: The NSButton that triggered the event.
-        """
-        self.delete_callback(self.index)
-    
-    def mouseEntered_(self, event):
-        """
-        Handle mouse enter event by updating hover state and cursor.
-
-        Args:
-            event: The NSEvent representing the mouse enter event.
-        """
-        self.hovered = True
-        self.setNeedsDisplay_(True)
-        NSCursor.pointingHandCursor().set()
-    
-    def mouseExited_(self, event):
-        """
-        Handle mouse exit event by updating hover state and cursor.
-
-        Args:
-            event: The NSEvent representing the mouse exit event.
-        """
-        self.hovered = False
-        self.setNeedsDisplay_(True)
-        NSCursor.arrowCursor().set()
-    
-    def mouseDown_(self, event):
-        """
-        Handle mouse click event by triggering the appropriate callback.
-
-        Args:
-            event: The NSEvent representing the mouse click event.
-        """
-        point = self.convertPoint_fromView_(event.locationInWindow(), None)
-        
-        if not NSPointInRect(point, self.delete_button.frame()):
-            self.callback(self.index)
-    
     def drawRect_(self, rect):
         """
         Draw the view's content including background and text.
@@ -166,17 +110,17 @@ class HistoryItemView(NSView):
         }
         
         # Display appropriate preview based on content type
-        if self.item.content_type == 'text':
+        if self.item.content_type == NSStringPboardType:
             display_text = self.item.content
             if len(display_text) > 100:
                 display_text = display_text[:97] + "..."
-        elif self.item.content_type == 'image':
+        elif self.item.content_type in (NSPasteboardTypePNG, NSPasteboardTypeTIFF):
             display_text = "📷 Image"
-        elif self.item.content_type == 'file':
-            display_text = f"📄 {self.item.preview}"
-        elif self.item.content_type == 'pdf':
+        elif self.item.content_type == NSPasteboardTypeFileURL:
+            display_text = f"📄 {os.path.basename(self.item.content)}"
+        elif self.item.content_type == NSPDFPboardType:
             display_text = "📑 PDF Document"
-        elif self.item.content_type == 'rtf':
+        elif self.item.content_type == NSPasteboardTypeRTF:
             display_text = "📝 Rich Text Document"
         else:
             display_text = f"Unknown type: {self.item.content_type}"
@@ -186,14 +130,44 @@ class HistoryItemView(NSView):
         )
         
         # Position text to the right of the image if present
-        if self.item.content_type == 'image':
-            x_offset = self.bounds().size.height
+        if self.image_view is not None:
+            x_offset = self.bounds().size.height + 5
         else:
             x_offset = 10
             
         text_height = text.size().height
         y_pos = (self.bounds().size.height - text_height) / 2
         text.drawAtPoint_(NSPoint(x_offset, y_pos))
+
+    def deleteClicked_(self, sender):
+        """
+        Handle delete button click event.
+        """
+        self.delete_callback(self.index)
+    
+    def mouseEntered_(self, event):
+        """
+        Handle mouse enter event.
+        """
+        self.hovered = True
+        self.setNeedsDisplay_(True)
+        NSCursor.pointingHandCursor().set()
+    
+    def mouseExited_(self, event):
+        """
+        Handle mouse exit event.
+        """
+        self.hovered = False
+        self.setNeedsDisplay_(True)
+        NSCursor.arrowCursor().set()
+    
+    def mouseDown_(self, event):
+        """
+        Handle mouse click event.
+        """
+        point = self.convertPoint_fromView_(event.locationInWindow(), None)
+        if not NSPointInRect(point, self.delete_button.frame()):
+            self.callback(self.index)
 
 class PopupWindow:
     """
@@ -210,7 +184,7 @@ class PopupWindow:
         Sets up the window appearance, scroll view, content view, and event monitors.
         The window is initially hidden.
         """
-        logger.info("Initializing PopupWindow")
+        #logger.info("Initializing PopupWindow")
         
         self.clipboard_history = ClipboardHistory(max_items=50)
         
@@ -218,46 +192,42 @@ class PopupWindow:
             app = NSApplication.sharedApplication()
             app.setActivationPolicy_(1)  
         
+        screen = NSScreen.mainScreen()
+        screen_rect = screen.frame()
+        
+        # Window dimensions
+        window_width = 400
+        window_height = 500
+        
+        # Center window on screen
+        window_x = (screen_rect.size.width - window_width) / 2
+        window_y = (screen_rect.size.height - window_height) / 2
+        
+        # Create window
+        window_rect = NSMakeRect(window_x, window_y, window_width, window_height)
+        
         self.window = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, 400, 300),  
-            NSWindowStyleMaskBorderless | NSWindowStyleMaskTitled | NSWindowStyleMaskNonactivatingPanel,  
+            window_rect,
+            NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel,
             NSBackingStoreBuffered,
             False
         )
         
-        background_color = NSColor.windowBackgroundColor().colorWithAlphaComponent_(0.9)  
-        self.window.setBackgroundColor_(background_color)
-        self.window.setOpaque_(False)  
-        self.window.setHasShadow_(True)  
-        self.window.setLevel_(NSFloatingWindowLevel)  
-        self.window.setAcceptsMouseMovedEvents_(True)  
-        self.window.setIgnoresMouseEvents_(False)  
-        self.window.setCanHide_(True)  
-        self.window.setHidesOnDeactivate_(False)  
-        self.window.setBecomesKeyOnlyIfNeeded_(True)  
+        self.window.setLevel_(NSFloatingWindowLevel)
+        self.window.setBackgroundColor_(NSColor.windowBackgroundColor())
+        self.window.setAlphaValue_(0.95)
+        self.window.setOpaque_(False)
+        self.window.setHasShadow_(True)
         
-        scroll_view = NSScrollView.alloc().initWithFrame_(
-            NSMakeRect(0, 0, 400, 300)
-        )
-        scroll_view.setHasVerticalScroller_(True)
-        scroll_view.setAutohidesScrollers_(True)
-        scroll_view.setBorderType_(NSBezelBorder)
-        scroll_view.setDrawsBackground_(False)  
-        
-        self.content_view = NSView.alloc().initWithFrame_(
-            NSMakeRect(0, 0, 380, 300)
-        )
-        self.content_view.setWantsLayer_(True)
-        
-        scroll_view.setDocumentView_(self.content_view)
-        
-        self.window.setContentView_(scroll_view)
+        # Create content view
+        self.content_view = NSView.alloc().initWithFrame_(window_rect)
+        self.window.setContentView_(self.content_view)
         
         self.key_monitor = None
         self.click_monitor = None
         
         self.window.orderOut_(None)
-        logger.info("PopupWindow successfully initialized")
+        #logger.info("PopupWindow successfully initialized")
 
     def _handle_key_event(self, event):
         """
@@ -273,7 +243,7 @@ class PopupWindow:
             Exception: If there's an error handling the keyboard event.
         """
         try:
-            logger.info(f"Keyboard event received - type: {event.type()}, keyCode: {event.keyCode()}")
+            #logger.info(f"Keyboard event received - type: {event.type()}, keyCode: {event.keyCode()}")
             if event.type() == NSEventTypeKeyDown:
                 if event.keyCode() == 53:
                     logger.info("Esc key detected, closing window")
@@ -281,7 +251,7 @@ class PopupWindow:
                     return None
             return event
         except Exception as e:
-            logger.error(f"Error handling keyboard event: {e}")
+            ###logger.error(f"Error handling keyboard event: {e}")
             return event
 
     def _handle_click_event(self, event):
@@ -310,14 +280,14 @@ class PopupWindow:
             )
             
             if not in_window:
-                logger.info("Click detected outside window")
+                #logger.info("Click detected outside window")
                 self.hide()
                 return None
             
             return event
             
         except Exception as e:
-            logger.error(f"Error handling click event: {e}")
+            ###logger.error(f"Error handling click event: {e}")
             return event
 
     def _handle_item_click(self, index):
@@ -374,7 +344,7 @@ class PopupWindow:
             
             history = self.clipboard_history.get_history()
             if not history:
-                logger.info("History is empty")
+                #logger.info("History is empty")
                 return
                 
             item_height = 30
@@ -413,7 +383,7 @@ class PopupWindow:
             Exception: If there's an error showing the window.
         """
         try:
-            logger.info(f"Showing window at coordinates ({x}, {y})")
+            #logger.info(f"Showing window at coordinates ({x}, {y})")
             
             self.clipboard_history.check_and_update()
             
@@ -421,7 +391,7 @@ class PopupWindow:
             
             screen = NSScreen.mainScreen()
             if screen is None:
-                logger.error("Failed to find main screen")
+                ##logger.error("Failed to find main screen")
                 return
             
             screen_frame = screen.frame()
@@ -430,7 +400,7 @@ class PopupWindow:
             self.window.setFrameOrigin_((x, adjusted_y - self.window.frame().size.height))
             
             if self.key_monitor is None:
-                logger.info("Configuring keyboard event monitor")
+               # logger.info("Configuring keyboard event monitor")
                 self.key_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
                     NSEventMaskKeyDown,
                     self._handle_key_event
@@ -455,22 +425,22 @@ class PopupWindow:
             Exception: If there's an error hiding the window.
         """
         try:
-            logger.info("Closing window")
+           # logger.info("Closing window")
             
             if self.key_monitor is not None:
                 NSEvent.removeMonitor_(self.key_monitor)
                 self.key_monitor = None
-                logger.info("Keyboard event monitor removed")
+               # logger.info("Keyboard event monitor removed")
             
             if self.click_monitor is not None:
                 NSEvent.removeMonitor_(self.click_monitor)
                 self.click_monitor = None
-                logger.info("Click event monitor removed")
+             #   logger.info("Click event monitor removed")
             
             self.window.orderOut_(None)
-            logger.info("Window hidden successfully")
+           # logger.info("Window hidden successfully")
             
         except Exception as e:
-            logger.error(f"Error hiding window: {e}")
+            ###logger.error(f"Error hiding window: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            ###logger.error(traceback.format_exc())
