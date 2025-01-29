@@ -53,8 +53,14 @@ def main():
         )
         
         # Configure le listener de clavier
-        keyboard = MacKeyboardListener()
-        keyboard.set_callback(lambda: popup_window.show(*get_mouse_position()))
+        def show_popup():
+            try:
+                x, y = get_mouse_position()
+                popup_window.show(x, y)
+            except Exception as e:
+                logger.error(f"Erreur lors de l'affichage de la popup : {e}")
+        
+        keyboard = MacKeyboardListener(show_popup)
         keyboard.start()
         
         # Lance la boucle principale

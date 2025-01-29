@@ -3,7 +3,7 @@ from Quartz import (CFMachPortCreateRunLoopSource, CFRunLoopGetCurrent,
                    kCGSessionEventTap, kCGHeadInsertEventTap,
                    CGEventMaskBit, kCGEventKeyDown, CGEventGetFlags,
                    kCGEventFlagMaskCommand, kCGEventFlagMaskAlternate,
-                   kCGEventFlagMaskShift, CGEventGetIntegerValueField,
+                   kCGEventFlagMaskShift, kCGEventFlagMaskControl, CGEventGetIntegerValueField,
                    kCGKeyboardEventKeycode, CFRunLoopAddSource,
                    CGEventTapEnable)
 import logging
@@ -51,7 +51,7 @@ class MacKeyboardListener:
                 # Vérifie les modificateurs
                 cmd_pressed = (flags & kCGEventFlagMaskCommand) != 0
                 alt_pressed = (flags & kCGEventFlagMaskAlternate) != 0
-                shift_pressed = (flags & kCGEventFlagMaskShift) != 0
+                ctrl_pressed = (flags & kCGEventFlagMaskControl) != 0
                 
                 # Convertit le code en nom de touche
                 key_name = self.KEY_CODES.get(key_code, f'Unknown({key_code})')
@@ -62,17 +62,17 @@ class MacKeyboardListener:
                     modifiers.append('Command')
                 if alt_pressed:
                     modifiers.append('Option')
-                if shift_pressed:
-                    modifiers.append('Shift')
+                if ctrl_pressed:
+                    modifiers.append('Control')
                 
                 if modifiers:
                     logger.info(f"Touche pressée: {' + '.join(modifiers)} + {key_name} (code: {key_code})")
                 else:
                     logger.info(f"Touche pressée: {key_name} (code: {key_code})")
                 '''
-                # Vérifie si c'est la combinaison qu'on cherche (Command + Option + Shift + V)
-                if key_code == 9 and cmd_pressed and alt_pressed and shift_pressed:  # V
-                    logger.info("Combinaison de touches détectée: Command + Option + Shift + V!")
+                # Vérifie si c'est la combinaison qu'on cherche (Command + Control + Option + V)
+                if key_code == 9 and cmd_pressed and alt_pressed and ctrl_pressed:  # V
+                    logger.info("Combinaison de touches détectée: Command + Control + Option + V!")
                     self.callback()
                 
         except Exception as e:
