@@ -1,32 +1,65 @@
-# Fenêtre Contextuelle
+# WindowsV
 
-Cette application crée une fenêtre contextuelle qui apparaît à côté du curseur lorsque vous appuyez sur la combinaison de touches Shift + Option + Cmd + V.
+A clipboard manager for macOS inspired by Windows+V, allowing easy access to your clipboard history.
+
+## Features
+
+- 📋 Clipboard history  
+- ⌨️ Customizable keyboard shortcut (default: Ctrl+Opt+Cmd+V)  
+- 🖱️ Contextual user interface that appears at the cursor position  
+- 🔄 Real-time updates  
+
+## Requirements
+
+- macOS 10.13 or later  
+- Python 3.9+  
+- Python packages listed in `requirements.txt`  
 
 ## Installation
 
-1. Assurez-vous d'avoir Python 3.6 ou supérieur installé
-2. Installez les dépendances :
-```bash
-pip install -r requirements.txt
-```
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/your-username/WindowsV.git
+   cd WindowsV
+   ```  
+2. Install dependencies:  
+   ```bash
+   pip3 install -r requirements.txt
+   ```  
+3. Run the application:  
+   ```bash
+   python3 main.py
+   ```  
 
-## Utilisation
+## Required Permissions
 
-1. Lancez l'application :
-```bash
-python main.py
-```
+The application requires the following permissions to function properly:  
+- **Accessibility**: To detect keyboard shortcuts  
+- **Input Monitoring**: To monitor keyboard input  
 
-2. Utilisez la combinaison de touches Shift + Option + Cmd + V pour faire apparaître la fenêtre
-3. La fenêtre disparaîtra automatiquement si vous :
-   - Cliquez en dehors de la fenêtre
-   - Appuyez sur la touche Échap
-   - Utilisez à nouveau le raccourci
+These permissions can be granted in:  
+**System Preferences > Security & Privacy > Privacy > Accessibility/Input Monitoring**  
 
-## Structure du projet
+## Usage
 
-- `main.py` : Point d'entrée de l'application
-- `keyboard_listener.py` : Gestion des raccourcis clavier
-- `popup_window.py` : Gestion de la fenêtre contextuelle
-- `mouse_position.py` : Récupération de la position du curseur
-- `requirements.txt` : Liste des dépendances
+1. Launch the application  
+2. The app runs in the background in the menu bar (📋 icon)  
+3. Use the shortcut Ctrl+Opt+Cmd+V to display the clipboard history  
+4. Click on an item to copy it to the clipboard and paste it in input field
+
+## Project Structure
+
+- `main.py` : Application entry point  
+- `popup_window.py` : Manages the popup window  
+- `clipboard_history.py` : Handles clipboard history  
+- `mac_keyboard_listener.py` : Manages keyboard shortcuts  
+- `mouse_position.py` : Utility for retrieving cursor position  
+
+## Development
+
+To contribute to the project:  
+1. Fork the repository  
+2. Create a branch for your feature  
+3. Commit your changes  
+4. Push to the branch  
+5. Open a Pull Request  
